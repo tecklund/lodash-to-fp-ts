@@ -1,0 +1,11 @@
+{
+  "name": "lodash-fpts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@types/lodash": "^4.14.168",
+    "fp-ts": "^2.9.5",
+    "lodash": "^4.17.20"
+  }
+}

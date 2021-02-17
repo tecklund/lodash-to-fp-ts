@@ -6,6 +6,7 @@
   "dependencies": {
     "@types/lodash": "^4.14.168",
     "fp-ts": "^2.9.5",
+    "fp-ts-std": "^0.8.0",
     "lodash": "^4.17.20"
   }
 }

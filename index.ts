@@ -1,16 +1,13 @@
-import * as A from 'fp-ts/Array'
 import * as A1 from 'fp-ts-std/Array'
-import * as NEA from 'fp-ts/NonEmptyArray'
-import * as O from 'fp-ts/Option'
+import * as A from 'fp-ts/Array'
 import * as Eq from 'fp-ts/Eq'
-import * as Ord from 'fp-ts/Ord'
-import * as R from 'fp-ts/Record'
-import * as _ from 'lodash'
-import * as Map from 'fp-ts/Map'
+import { Endomorphism, flow, identity, pipe } from 'fp-ts/function'
 import * as M from 'fp-ts/Monoid'
-import {getFirstSemigroup} from 'fp-ts/Semigroup'
-import {pipe, identity} from 'fp-ts/function'
-import { lowerFirst } from 'lodash'
+import * as O from 'fp-ts/Option'
+import * as R from 'fp-ts/Record'
+import { getFirstSemigroup } from 'fp-ts/Semigroup'
+import * as _ from 'lodash'
+import * as L from 'monocle-ts/lib/Lens'
 
 const log = console.log
 
@@ -352,7 +349,52 @@ log(A.zip(['a', 'b'], [1, 2]))
 log(_.zipObject(['a', 'b'], [1, 2]))
 log(R.fromFoldableMap(getFirstSemigroup<number>(), A.array)(A.zip(['a', 'b'], [1, 2]), identity))
 
-//zip deep - not doing property paths
+//zip deep
+log(_.zipObjectDeep(['a.b[0].c', 'a.b[1].d'], [13, 30]));
+// => { 'a': { 'b': [{ 'c': 13 }, { 'd': 30 }] } }
+
+// SOLUTION #1 - less type info
+log(pipe(
+  A.zipWith(['c', 'd'], [13, 30], (key, value) => ({[key]: value})),
+  b => ({ a: { b } })
+))
+
+// SOLUTION #2 - more type info
+interface ObjDeep {
+  a: {
+    b: [
+      { c: number },
+      { d: number }
+    ]
+  }
+}
+  
+const zippedObjectDeep: ObjDeep = pipe(
+  [13, 30],
+  A.mapWithIndex((index, value): Endomorphism<ObjDeep> => {
+    const component = index as 0 | 1
+    return pipe(
+      L.id<ObjDeep>(),
+      L.prop('a'),
+      L.prop('b'),
+      component === 0
+        ? flow(
+          L.component(component),
+          L.prop('c'),
+        )
+        : flow(
+          L.component(component),
+          L.prop('d'),
+        ),
+      lens => lens.set(value)
+    )
+  }),
+  A.reduce(
+    { a: { b: [{ c: NaN }, { d: NaN }] } },
+    (acc, fn) => fn(acc) 
+  ),
+)
+log(zippedObjectDeep)
 
 //zipwith
 log(_.zipWith([1, 2], [10, 20], function(a, b) {

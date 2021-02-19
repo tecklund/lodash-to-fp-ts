@@ -539,31 +539,25 @@ log(pipe(u8, A1.reject(({active}) => !active)))
 //sample
 log(_.sample([1, 2, 3, 4]))
 const arr9 = ['a', 'b', 'c', 'd']
-log(pipe(Rand.randomInt(0, 5), IO.map(x => arr9[x]))())
+log(pipe(Rand.randomInt(0, arr9.length-1), IO.map(x => arr9[x]))())
 
-//samplesize
-log(_.sampleSize([1, 2, 3], 2))
-//IO.map(A.map(A.lookup))
-const rands = ROA.replicate(2, Rand.randomInt(0, arr9.length-1))
-const tap = <A>(a:A) => {console.log(a); return a;}
-//print out both the random indexes and the resulting values
-log(pipe(rands, IO.sequenceArray, IO.map(tap), IO.map(flow(ROA.map(x => ROA.lookup(x)(arr9)), ROA.compact)))() )
+
 
 //shuffle
 log(_.shuffle([1, 2, 3, 4]))
 
-interface shuf {
+interface shuf<A> {
   sort: number
-  val: string
+  val: A
 }
-const bysort = Ord.ord.contramap(Ord.ordNumber, (p: shuf) => p.sort)
+const bysort = (<A>() => Ord.ord.contramap(Ord.ordNumber, (p: shuf<A>) => p.sort))()
 
-const fpshuffle = (arr: string[]) => 
+const fpshuffle = <A>(arr: A[]) => 
   pipe(
-    A.replicate(arr9.length, Rand.random), 
+    A.replicate(arr.length, Rand.random), 
     IO.sequenceArray, 
     IO.map(flow(
-      ROA.zip(arr9), 
+      ROA.zip(arr), 
       ROA.map(([sort, val]) => ({sort, val})), 
       ROA.sort(bysort), 
       ROA.map(x => x.val)
@@ -571,7 +565,38 @@ const fpshuffle = (arr: string[]) =>
   )
 
 log(fpshuffle(arr9)())
-// better sample that won't give more than one of the same
+
+//samplesize - needs shuffle to work so its down here
 log(pipe(fpshuffle(arr9), IO.map(ROA.takeLeft(2)))())
 
+//size
+log(_.size({a: 1, b: 2}))
+log(R.size({a: 1, b: 2}))
+
+//some
+var users = [
+  { 'user': 'barney', 'active': true },
+  { 'user': 'fred',   'active': false }
+];
+ 
+log(_.some(users, { 'user': 'barney', 'active': false }))
+const userEq: Eq.Eq<{user:string, active:boolean}> = {
+  equals: (x,y) => x.user === y.user && x.active === y.active
+}
+log(pipe(users, A.some(x => userEq.equals(x, { 'user': 'barney', 'active': false }))))
+
+
+//sortby
+var u9 = [
+  { 'user': 'fred',   'age': 48 },
+  { 'user': 'barney', 'age': 36 },
+  { 'user': 'fred',   'age': 40 },
+  { 'user': 'barney', 'age': 34 }
+];
+ 
+log(_.sortBy(u9, [function(o) { return o.user; }]))
+
+log(A.sort(byName)(u9))
+
+//FUNCTIONS
 

@@ -561,11 +561,13 @@ const bysort = Ord.ord.contramap(Ord.ordNumber, (p: shuf) => p.sort)
 const fpshuffle = (arr: string[]) => 
   pipe(
     A.replicate(arr9.length, Rand.random), 
-    IO.sequenceArray, IO.map(flow(
-    ROA.zip(arr9), 
-    ROA.map(([sort, val]) => ({sort, val})), 
-    ROA.sort(bysort), 
-    ROA.map(x => x.val)))
+    IO.sequenceArray, 
+    IO.map(flow(
+      ROA.zip(arr9), 
+      ROA.map(([sort, val]) => ({sort, val})), 
+      ROA.sort(bysort), 
+      ROA.map(x => x.val)
+    ))
   )
 
 log(fpshuffle(arr9)())

@@ -11,8 +11,9 @@ import * as _ from 'lodash'
 import * as Map from 'fp-ts/Map'
 import * as M from 'fp-ts/Monoid'
 import * as IO from 'fp-ts/IO'
+import * as Rand from 'fp-ts/Random'
 import {getFirstSemigroup} from 'fp-ts/Semigroup'
-import {pipe, identity} from 'fp-ts/function'
+import {pipe, identity, flow} from 'fp-ts/function'
 import { lowerFirst } from 'lodash'
 
 const log = console.log
@@ -498,4 +499,77 @@ const byAge = Ord.ord.contramap(Ord.getDualOrd(Ord.ordNumber), (p: Person) => p.
 // Sort by `user` in ascending order and by `age` in descending order.
 log(_.orderBy(u4, ['user', 'age'], ['asc', 'desc']))
 log(A.sortBy([byName, byAge])(u4))
+
+var u7 = [
+  { 'user': 'barney',  'age': 36, 'active': false },
+  { 'user': 'fred',    'age': 40, 'active': true },
+  { 'user': 'pebbles', 'age': 1,  'active': false }
+];
+ 
+log(_.partition(u7, function(o) { return o.active; }))
+log(pipe(u7, A.partition(({active}) => active)))
+
+//reduce
+log(_.reduce([1, 2, 3], function(sum, n) {
+  return sum + n;
+}, 0))
+log(A.reduce(0, M.monoidSum.concat)([1,2,3]))
+
+//reduceright
+var arr8 = [[0, 1], [2, 3], [4, 5]];
+ 
+log(_.reduceRight(arr8, function(flattened:number[], other) {
+  return flattened.concat(other);
+}, []))
+
+log(pipe(arr8, A.reduceRight([] as number[], (n, acc) => acc.concat(n))))
+//note that the order of the params is revered compared to standard reduce
+log(pipe(arr8, A.reduce([] as number[], (acc, n) => acc.concat(n))))
+
+//reject
+var u8 = [
+  { 'user': 'barney', 'age': 36, 'active': false },
+  { 'user': 'fred',   'age': 40, 'active': true }
+];
+ 
+log(_.reject(u8, function(o) { return !o.active; }))
+
+log(pipe(u8, A1.reject(({active}) => !active)))
+
+//sample
+log(_.sample([1, 2, 3, 4]))
+const arr9 = ['a', 'b', 'c', 'd']
+log(pipe(Rand.randomInt(0, 5), IO.map(x => arr9[x]))())
+
+//samplesize
+log(_.sampleSize([1, 2, 3], 2))
+//IO.map(A.map(A.lookup))
+const rands = ROA.replicate(2, Rand.randomInt(0, arr9.length-1))
+const tap = <A>(a:A) => {console.log(a); return a;}
+//print out both the random indexes and the resulting values
+log(pipe(rands, IO.sequenceArray, IO.map(tap), IO.map(flow(ROA.map(x => ROA.lookup(x)(arr9)), ROA.compact)))() )
+
+//shuffle
+log(_.shuffle([1, 2, 3, 4]))
+
+interface shuf {
+  sort: number
+  val: string
+}
+const bysort = Ord.ord.contramap(Ord.ordNumber, (p: shuf) => p.sort)
+
+const fpshuffle = (arr: string[]) => 
+  pipe(
+    A.replicate(arr9.length, Rand.random), 
+    IO.sequenceArray, IO.map(flow(
+    ROA.zip(arr9), 
+    ROA.map(([sort, val]) => ({sort, val})), 
+    ROA.sort(bysort), 
+    ROA.map(x => x.val)))
+  )
+
+log(fpshuffle(arr9)())
+// better sample that won't give more than one of the same
+log(pipe(fpshuffle(arr9), IO.map(ROA.takeLeft(2)))())
+
 

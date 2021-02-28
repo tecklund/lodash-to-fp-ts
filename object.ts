@@ -2,6 +2,7 @@ import { eqNumber } from 'fp-ts/Eq'
 import { getLastSemigroup } from 'fp-ts/Semigroup'
 import * as M from 'fp-ts/Map'
 import * as R from 'fp-ts/Record'
+import * as R1 from 'fp-ts-std/Record'
 import * as Semi from 'fp-ts/Semigroup'
 import {merge} from 'fp-ts-std/Record'
 import * as _ from 'lodash'
@@ -15,6 +16,7 @@ import { array } from 'fp-ts/lib/Array'
 import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
 import { pipe } from 'fp-ts/lib/function'
+import { fromNumber } from 'fp-ts-std/String'
 
 const log = console.log
 
@@ -103,3 +105,78 @@ const secval = a.composeOptional(sec).composePrism(cornum).getOption(object)
 
 // turn an array of options into a flat array with nones removed
 log(A.compact([fstval, secval]))
+
+// _.create - again, not really applicable to typescript
+
+// _.defaults + _.defaultsDeep - see _.assignWith
+
+// _.findKey
+var users = {
+  'barney':  { 'age': 36, 'active': true },
+  'fred':    { 'age': 40, 'active': false },
+  'pebbles': { 'age': 1,  'active': true }
+};
+ 
+log(_.findKey(users, function(o) { return o.age < 40; }))
+//  => 'barney'
+
+// filter all the records, grab the first key
+log(pipe(users, R.filterWithIndex((k, v) => v.age < 40), R.keys, A.head))
+
+
+// _.findLastKey
+log(_.findLastKey(users, function(o) { return o.age < 40; }))
+
+log(pipe(users, R.filterWithIndex((k, v) => v.age < 40), R.keys, A.last))
+
+// _.forIn - this funciton is not really applicable for fp-ts
+// you should either be transforming some data into other data
+// or transforming data into IO - either way, you don't loop
+
+// _.forInRight - see above
+
+// _.forOwn - see above
+
+// _.forOwnRight - see above
+
+// _.functions - ??
+
+// _.functionsIn - ??
+
+// _.get
+var obj = { 'a': [{ 'b': { 'c': 3 } }] }
+log(_.get(object, 'a[0].b.c'))
+
+// do it with lenses
+const fst1 = indexArray<{b: {c: number}}>().index(0)
+const x = Lens.fromProp<{a: {b: {c: number}}[]}>()('a').composeOptional(fst1)
+const cval = x.composeLens(Lens.fromPath<{b: {c: number}}>()(['b', 'c'])).getOption(obj)
+log(cval)
+
+// _.has
+log(_.has(obj, 'a'))
+log(pipe(R.lookup('a')(obj), O.isSome))
+
+// with lensing for nested lookups
+log(pipe(cval, O.isSome))
+
+// _.hasIn - see _.has
+
+// _.invert
+var obj1 = { 'a': 1, 'b': 2, 'c': 1 };
+log(_.invert(obj1))
+
+log(R1.invertLast(fromNumber)(obj1))
+
+// _.invertBy
+var obj2 = { 'a': 1, 'b': 2, 'c': 1 };
+log(_.invertBy(obj2))
+log(_.invertBy(obj2, function(value) {
+  return 'group' + value;
+}))
+
+log(R1.invertAll(fromNumber)(obj2))
+log(R1.invertAll(n => `group${n}`)(obj2))
+
+// _.invoke
+

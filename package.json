@@ -9,7 +9,10 @@
     "fp-ts-contrib": "^0.1.21",
     "fp-ts-rxjs": "^0.6.13",
     "fp-ts-std": "^0.8.0",
+    "io-ts": "^2.2.15",
+    "io-ts-types": "^0.5.15",
     "lodash": "^4.17.20",
+    "monocle-ts": "^2.3.5",
     "rxjs": "^6.6.3"
   }
 }

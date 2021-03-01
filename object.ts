@@ -86,28 +86,8 @@ log(_.at(object, ['a[0].b.c', 'a[1]']))
 // generally means you've screwed something up, but what exactly?
 // Using Lensing allows us to access nested properties in a composable and 
 // typesafe way
-interface demoObject{
-  a: ({b: {c: number}} | number)[]
-}
-// access a specific item in an array
-const fst = indexArray<{b: {c: number}} | number>().index(0)
-const sec = indexArray<{b: {c: number}} | number>().index(1)
 
-// create a Lens for accessing the 'a' property
-const a = Lens.fromProp<demoObject>()('a')
-
-// create a Prism for getting either the number or the path you want
-const cornum : Prism<{b: {c: number}} | number, number> = new Prism(
-  (s) => (typeof s === "number") ? O.some(s) : O.some(s.b.c),
-  (a) => a
-)
-// get the first and second values
-const fstval = a.composeOptional(fst).composePrism(cornum).getOption(object)
-const secval = a.composeOptional(sec).composePrism(cornum).getOption(object)
-
-// turn an array of options into a flat array with nones removed
-log(A.compact([fstval, secval]))
-
+// the prisim lets us select between the sum types
 const j: P.Prism<{b: {c: number}} | number, number> = {
   getOption: (s) => (typeof s === "number") ? O.some(s) : O.some(s.b.c),
   reverseGet: identity,
@@ -164,11 +144,6 @@ var obj = { 'a': [{ 'b': { 'c': 3 } }] }
 log(_.get(object, 'a[0].b.c'))
 
 // do it with lenses
-const fst1 = indexArray<{b: {c: number}}>().index(0)
-const x = Lens.fromProp<{a: {b: {c: number}}[]}>()('a').composeOptional(fst1)
-const cval = x.composeLens(Lens.fromPath<{b: {c: number}}>()(['b', 'c'])).getOption(obj)
-log(cval)
-
 const getC = pipe(
   Op.id<{ a: readonly { b: { c: number } }[] }>(),
   Op.prop('a'),
@@ -183,7 +158,7 @@ log(_.has(obj, 'a'))
 log(pipe(R.lookup('a')(obj), O.isSome))
 
 // with lensing for nested lookups
-log(pipe(cval, O.isSome))
+log(pipe(getC(obj), O.isSome))
 
 // _.hasIn - see _.has
 

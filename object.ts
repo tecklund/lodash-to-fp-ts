@@ -12,10 +12,12 @@ import * as O from 'fp-ts/Option'
 import * as O1 from 'fp-ts-std/Option'
 import * as E1 from 'fp-ts-std/Either'
 import { fromTraversable, Lens, Prism } from 'monocle-ts'
+import * as P from 'monocle-ts/lib/Prism'
+import * as Op from 'monocle-ts/lib/Optional'
 import { array } from 'fp-ts/lib/Array'
 import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
-import { pipe } from 'fp-ts/lib/function'
+import { pipe, identity } from 'fp-ts/lib/function'
 import { fromNumber } from 'fp-ts-std/String'
 
 const log = console.log
@@ -106,6 +108,20 @@ const secval = a.composeOptional(sec).composePrism(cornum).getOption(object)
 // turn an array of options into a flat array with nones removed
 log(A.compact([fstval, secval]))
 
+const j: P.Prism<{b: {c: number}} | number, number> = {
+  getOption: (s) => (typeof s === "number") ? O.some(s) : O.some(s.b.c),
+  reverseGet: identity,
+}
+
+const pp = (index: number) => pipe(
+  Op.id<{ a: ReadonlyArray<{b: {c: number}} | number> }>(),
+  Op.prop('a'),
+  Op.index(index),
+  Op.compose(P.asOptional(j)),
+  a => a.getOption
+)
+log(A.compact([pp(0)(object), pp(1)(object)]))
+
 // _.create - again, not really applicable to typescript
 
 // _.defaults + _.defaultsDeep - see _.assignWith
@@ -152,6 +168,15 @@ const fst1 = indexArray<{b: {c: number}}>().index(0)
 const x = Lens.fromProp<{a: {b: {c: number}}[]}>()('a').composeOptional(fst1)
 const cval = x.composeLens(Lens.fromPath<{b: {c: number}}>()(['b', 'c'])).getOption(obj)
 log(cval)
+
+const getC = pipe(
+  Op.id<{ a: readonly { b: { c: number } }[] }>(),
+  Op.prop('a'),
+  Op.index(0),
+  Op.prop('b'),
+  opt => opt.getOption,
+)
+log(getC(obj))
 
 // _.has
 log(_.has(obj, 'a'))

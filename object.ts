@@ -178,5 +178,32 @@ log(_.invertBy(obj2, function(value) {
 log(R1.invertAll(fromNumber)(obj2))
 log(R1.invertAll(n => `group${n}`)(obj2))
 
-// _.invoke
+// _.invoke - this is just a terrible idea :/
+// you can use lensing to get the property you want and then invoke it
 
+// _.keys
+log(_.keys({'a': 1, 'b':2}))
+log(R.keys({'a': 1, 'b':2}))
+
+// _.keysIn - see keys
+
+// _.mapKeys
+log(_.mapKeys({ 'a': 1, 'b': 2 }, function(value, key) {
+  return key + value;
+}))
+log(pipe({ 'a': 1, 'b': 2 }, R.reduceWithIndex({}, (k, acc, v) => ({...acc, [k+v]: v}))))
+
+// _.mapValues
+log(_.mapValues({ 'a': 1, 'b': 2 }, (v) => v+1))
+log(pipe({ 'a': 1, 'b': 2 }, R.map(v => v+1)))
+
+// _.merge
+var obj3 = {
+  'a': [{ 'b': 2 }, { 'd': 4 }]
+};
+ 
+var other = {
+  'a': [{ 'c': 3 }, { 'e': 5 }]
+};
+
+log(_.merge(obj3, other))

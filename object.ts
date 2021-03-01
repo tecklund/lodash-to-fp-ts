@@ -1,9 +1,10 @@
-import { eqNumber } from 'fp-ts/Eq'
+import { eqNumber, eqString } from 'fp-ts/Eq'
 import { getLastSemigroup } from 'fp-ts/Semigroup'
 import * as M from 'fp-ts/Map'
 import * as R from 'fp-ts/Record'
 import * as R1 from 'fp-ts-std/Record'
 import * as Semi from 'fp-ts/Semigroup'
+import * as Mon from 'fp-ts/Monoid'
 import {merge} from 'fp-ts-std/Record'
 import * as _ from 'lodash'
 import {withFallback} from 'io-ts-types/withFallback'
@@ -19,6 +20,9 @@ import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
 import { pipe, identity } from 'fp-ts/lib/function'
 import { fromNumber } from 'fp-ts-std/String'
+import { Json } from 'io-ts-types'
+import { both } from 'fp-ts/lib/These'
+import { monoidSum } from 'fp-ts/lib/Monoid'
 
 const log = console.log
 
@@ -197,13 +201,56 @@ log(pipe({ 'a': 1, 'b': 2 }, R.reduceWithIndex({}, (k, acc, v) => ({...acc, [k+v
 log(_.mapValues({ 'a': 1, 'b': 2 }, (v) => v+1))
 log(pipe({ 'a': 1, 'b': 2 }, R.map(v => v+1)))
 
-// _.merge
+// _.merge -- this is nasty, it will just drop values if it doesn't get what it expects
+// please don't use the lodash merge, it will lead to subtle bugs :(
 var obj3 = {
-  'a': [{ 'b': 2 }, { 'd': 4 }]
+  'a': [{ 'b': 2 }, { 'd': 4 }, 5]
 };
  
 var other = {
-  'a': [{ 'c': 3 }, { 'e': 5 }]
+  'a': [{ 'c': 3 }, { 'e': 5 }, {'f': 6}]
 };
 
 log(_.merge(obj3, other))
+
+
+type nested = Record<string, Record<string, number>[]>
+var obj4: nested = {
+  'a': [{ 'b': 2 }, { 'd': 4 }]
+};
+ 
+var other2: nested = {
+  'a': [{ 'b': 3 }, { 'e': 5 }]
+};
+
+const zipPadding = <A, B, C>(
+  fa: ReadonlyArray<A>, 
+  fb: ReadonlyArray<B>, 
+  f: (a: A, b: B) => C,
+  emptyA: A,
+  emptyB: B): ReadonlyArray<C> => {
+  const fc: Array<C> = []
+  const len = Math.max(fa.length, fb.length)
+  for (let i = 0; i < len; i++) {
+    fc[i] = f(i < fa.length ? fa[i] : emptyA, i < fb.length ? fb[i] : emptyB)
+  }
+  return fc
+
+}
+
+const mergeDict = R.getMonoid<string, number>(Semi.semigroupSum)
+const concat = <A>(a:A[]) => (b:A[]) => A.getMonoid<A>().concat(a, b)
+
+const recurMerge = {
+  concat: (x: nested, y: nested) => {
+    const keys = pipe(R.keys(x), concat(R.keys(y)), A.uniq(eqString))
+    const foo = pipe(keys, A.map(k => {
+      return pipe(R.lookup(k)(x), O.chain(v => pipe(R.lookup(k)(y), O.map(v2 => pipe(A.zip(v, v2), A.map(([_1, _2]) => mergeDict.concat(_1, _2) )) )) ))
+    }))
+    return foo
+  }
+}
+
+log(JSON.stringify(recurMerge.concat(obj4, other2)))
+
+log(A.zip([1,2,3], [1,2]))

@@ -15,14 +15,14 @@ import * as E1 from 'fp-ts-std/Either'
 import { fromTraversable, Lens, Prism } from 'monocle-ts'
 import * as P from 'monocle-ts/lib/Prism'
 import * as Op from 'monocle-ts/lib/Optional'
-import { array } from 'fp-ts/lib/Array'
 import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
 import { pipe, identity } from 'fp-ts/lib/function'
 import { fromNumber } from 'fp-ts-std/String'
-import { Json } from 'io-ts-types'
-import { both } from 'fp-ts/lib/These'
-import { monoidSum } from 'fp-ts/lib/Monoid'
+import * as TH from 'fp-ts/These'
+import * as ROA from 'fp-ts/ReadonlyArray'
+import { Do } from 'fp-ts-contrib/lib/Do'
+import { ADT, match, matchI } from "ts-adt"
 
 const log = console.log
 
@@ -204,53 +204,70 @@ log(pipe({ 'a': 1, 'b': 2 }, R.map(v => v+1)))
 // _.merge -- this is nasty, it will just drop values if it doesn't get what it expects
 // please don't use the lodash merge, it will lead to subtle bugs :(
 var obj3 = {
-  'a': [{ 'b': 2 }, { 'd': 4 }, 5]
-};
- 
-var other = {
-  'a': [{ 'c': 3 }, { 'e': 5 }, {'f': 6}]
+  'a': [{ 'b': 2 }, { 'd': 4 }, {'f': 6}, {'g': 3}]
 };
 
+// this is not typesafe, you can see a 5 in there
+var other = {
+  'a': [{ 'c': 3 }, { 'e': 5 }, {'f': 12}, 5]
+};
+
+// gives a bad answer, just drops {g: 3} >:|
 log(_.merge(obj3, other))
 
 
 type nested = Record<string, Record<string, number>[]>
 var obj4: nested = {
-  'a': [{ 'b': 2 }, { 'd': 4 }]
+  'a': [{ 'b': 2 }, { 'd': 4 }, {'f': 6}, {'g': 3}]
 };
  
 var other2: nested = {
-  'a': [{ 'b': 3 }, { 'e': 5 }]
+  'a': [{ 'c': 3 }, { 'e': 5 }, {'f': 12}]
 };
 
-const zipPadding = <A, B, C>(
+// ok so i wanted to zip uneven lists but this doesn't exist in fp-ts (yet!) so i just made it real quick
+// it uses options to tell you if one side or the other isn't there
+const zipWithAll = <A, B, C>(
   fa: ReadonlyArray<A>, 
   fb: ReadonlyArray<B>, 
-  f: (a: A, b: B) => C,
-  emptyA: A,
-  emptyB: B): ReadonlyArray<C> => {
+  f: (a: O.Option<A>, b: O.Option<B>) => C): ReadonlyArray<C> => {
   const fc: Array<C> = []
   const len = Math.max(fa.length, fb.length)
   for (let i = 0; i < len; i++) {
-    fc[i] = f(i < fa.length ? fa[i] : emptyA, i < fb.length ? fb[i] : emptyB)
+    fc[i] = f(i < fa.length ? O.some(fa[i]) : O.none, i < fb.length ? O.some(fb[i]) : O.none)
   }
   return fc
-
 }
 
-const mergeDict = R.getMonoid<string, number>(Semi.semigroupSum)
+// zip but just gives arrays of size 1 when its uneven
+const zipAll = <A, B, C>(fa: ReadonlyArray<A>, fb: ReadonlyArray<B>) =>
+  zipWithAll(fa, fb, (a, b) => A.compact<(A|B)>([a, b]))
+
+// merge two records together - if there is a collision take the first one
+const mergeDict = R.getMonoid<string, number>(Semi.getLastSemigroup<number>()).concat
+// convienience func for concating arrays together
 const concat = <A>(a:A[]) => (b:A[]) => A.getMonoid<A>().concat(a, b)
 
-const recurMerge = {
-  concat: (x: nested, y: nested) => {
+// an instance of semigroup for the nested type
+const nestedSemigroup = {
+  concat: (x: nested, y: nested) : nested => {
     const keys = pipe(R.keys(x), concat(R.keys(y)), A.uniq(eqString))
-    const foo = pipe(keys, A.map(k => {
-      return pipe(R.lookup(k)(x), O.chain(v => pipe(R.lookup(k)(y), O.map(v2 => pipe(A.zip(v, v2), A.map(([_1, _2]) => mergeDict.concat(_1, _2) )) )) ))
+    return pipe(keys, A.reduce({}, (acc, k) => {
+      const left = R.lookup(k)(x)
+      const right = R.lookup(k)(y)
+      if(O.isNone(left) && O.isSome(right)) return {...acc, [k] : O1.unsafeUnwrap(right)}
+      if(O.isSome(left) && O.isNone(right)) return {...acc, [k] : O1.unsafeUnwrap(left)}
+      // we know they must both have hit
+      const mergedItems = pipe(
+        zipAll(O1.unsafeUnwrap(left), O1.unsafeUnwrap(right)), 
+        ROA.map(A.reduce({} as Record<string, number>, mergeDict))
+      )
+      return {...acc, [k]: mergedItems}
     }))
-    return foo
   }
 }
 
-log(JSON.stringify(recurMerge.concat(obj4, other2)))
+// this gives you the correct answer without undefined behavior
+log(nestedSemigroup.concat(obj4, other2))
 
-log(A.zip([1,2,3], [1,2]))
+

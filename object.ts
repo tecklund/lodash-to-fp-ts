@@ -17,12 +17,14 @@ import * as P from 'monocle-ts/lib/Prism'
 import * as Op from 'monocle-ts/lib/Optional'
 import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
-import { pipe, identity } from 'fp-ts/lib/function'
+import { pipe, identity, flow } from 'fp-ts/lib/function'
 import { fromNumber } from 'fp-ts-std/String'
 import * as TH from 'fp-ts/These'
 import * as ROA from 'fp-ts/ReadonlyArray'
 import { Do } from 'fp-ts-contrib/lib/Do'
 import { ADT, match, matchI } from "ts-adt"
+import * as Eq from 'fp-ts/Eq'
+import * as NEA from 'fp-ts/NonEmptyArray'
 
 const log = console.log
 
@@ -266,6 +268,20 @@ const nestedSemigroup = {
     }))
   }
 }
+
+const shareKeys: Eq.Eq<Record<string, unknown>> = pipe(
+  Eq.fromEquals(flow(A.intersection(Eq.eqString), A.isNonEmpty)),
+  Eq.contramap(R.keys),
+)
+const mergeRecord = R.getMonoid(Semi.getLastSemigroup<number>())
+
+const nestedSemigroup2 = R.getMonoid<string, Record<string, number>[]>({
+  concat: (a, b) => pipe(
+    [...a, ...b],
+    NEA.group(shareKeys),
+    A.map(Mon.fold(mergeRecord))
+  ),
+})
 
 // this gives you the correct answer without undefined behavior
 log(nestedSemigroup.concat(obj4, other2))

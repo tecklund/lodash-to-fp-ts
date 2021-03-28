@@ -377,7 +377,7 @@ const updateObjLens = pipe(
 )
 log(JSON.stringify(updateObjLens(updatelensobj)))
 
-// updatewith - todo, maybe some kind of defaults in lenses?
+// updatewith - todo, maybe some kind of defaults in lenses? io-ts?
 
 // values
 var valuesobj = {a: 1, b:2}

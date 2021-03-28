@@ -12,17 +12,12 @@ import * as t from 'io-ts'
 import * as O from 'fp-ts/Option'
 import * as O1 from 'fp-ts-std/Option'
 import * as E1 from 'fp-ts-std/Either'
-import { fromTraversable, Lens, Prism } from 'monocle-ts'
 import * as P from 'monocle-ts/lib/Prism'
 import * as Op from 'monocle-ts/lib/Optional'
-import { indexArray } from 'monocle-ts/lib/Index/Array'
 import * as A from 'fp-ts/Array'
 import { pipe, identity } from 'fp-ts/lib/function'
 import { fromNumber } from 'fp-ts-std/String'
-import * as TH from 'fp-ts/These'
 import * as ROA from 'fp-ts/ReadonlyArray'
-import { Do } from 'fp-ts-contrib/lib/Do'
-import { ADT, match, matchI } from "ts-adt"
 
 const log = console.log
 
@@ -270,4 +265,124 @@ const nestedSemigroup = {
 // this gives you the correct answer without undefined behavior
 log(nestedSemigroup.concat(obj4, other2))
 
+// omit
+var omitobj = { 'a': 1, 'b': '2', 'c': 3 };
+ 
+log(_.omit(omitobj, ['a', 'c']))
+// => { 'b': '2' }
 
+log(R1.omit(['a', 'c'])(omitobj))
+
+// omitby
+var omitbyobj = { 'a': 1, 'b': '2', 'c': 3 };
+ 
+log(_.omitBy(omitbyobj, _.isNumber))
+
+log(R1.reject(_.isNumber)(omitbyobj))
+
+// pick
+type MyType = { a: number; b: string; c: number }
+var pickobj = { 'a': 1, 'b': '2', 'c': 3 };
+ 
+log(_.pick(pickobj, ['a', 'c']))
+
+log(R1.pick<MyType>()(['a', 'c'])(pickobj))
+
+// pickby
+var pickbyobj = { 'a': 1, 'b': '2', 'c': 3 };
+ 
+log(_.pickBy(pickbyobj, _.isNumber))
+// => { 'a': 1, 'c': 3 }
+
+log(R.filterWithIndex((k, v) => _.isNumber(v))(pickbyobj))
+
+// result -- see get
+
+// set
+var setobj = { 'a': [{ 'b': { 'c': 3 } }] };
+ 
+_.set(setobj, 'a[0].b.c', 4);
+log(JSON.stringify(setobj));
+
+
+// do it with lenses
+var setobjlens = { 'a': [{ 'b': { 'c': 3 } }] };
+const setC = pipe(
+  Op.id<{ a: readonly { b: { c: number } }[] }>(),
+  Op.prop('a'),
+  Op.index(0),
+  Op.prop('b'),
+  Op.prop('c'),
+  Op.modify((c) => 4)
+)
+log(JSON.stringify(setC(setobjlens)))
+
+// setwith - this is an odd function bc its for building out objects with defaults - look into io-ts to do this
+
+// toPairs
+var pairsobj = {a: 1, b: 2}
+log(_.toPairs(pairsobj))
+
+log(R.collect((k, v) => [k, v])(pairsobj))
+
+// toPairsIn - see toPairs
+
+// transform
+
+log(_.transform({ 'a': 1, 'b': 2, 'c': 1 }, function(result:{[key:string]: string[]}, value, key) {
+  (result[value] || (result[value] = [])).push(key);
+}, {}))
+
+log(
+  pipe(
+    { 'a': 1, 'b': 2, 'c': 1 }, 
+    R.reduceWithIndex({} as {[key:string]: string[]},(k:string, acc, n) => {
+      return {...acc, [`${n}`]: A.snoc(pipe(O.fromNullable(acc[`${n}`]), O.getOrElse(() => [] as string[])), k)}
+    })
+  ))
+
+// unset
+var unsetobj = { 'a': [{ 'b': { 'c': 7 } }] };
+_.unset(unsetobj, 'a[0].b.c');
+// => true
+log(JSON.stringify(unsetobj))
+// => { 'a': [{ 'b': {} }] };
+
+var unsetobjlens = { 'a': [{ 'b': { 'c': 7 } }] };
+const filterunset = pipe(
+  Op.id<{ a: readonly { b: { c: number } | {} }[] }>(),
+  Op.prop('a'),
+  Op.index(0),
+  Op.prop('b'),
+  opt => opt.set({})
+  
+)
+log(JSON.stringify(filterunset(unsetobjlens)))
+
+// update
+var updateobj = { 'a': [{ 'b': { 'c': 3 } }] };
+ 
+_.update(updateobj, 'a[0].b.c', function(n) { return n * n; });
+log(JSON.stringify(updateobj));
+
+// do it with lenses
+var updatelensobj = { 'a': [{ 'b': { 'c': 3 } }] };
+const updateObjLens = pipe(
+  Op.id<{ a: readonly { b: { c: number } }[] }>(),
+  Op.prop('a'),
+  Op.index(0),
+  Op.prop('b'),
+  Op.prop('c'),
+  Op.modify((c) => c*c)
+)
+log(JSON.stringify(updateObjLens(updatelensobj)))
+
+// updatewith - todo, maybe some kind of defaults in lenses?
+
+// values
+var valuesobj = {a: 1, b:2}
+log(_.values(valuesobj))
+
+log(R1.values(valuesobj))
+
+// valuesin - see values
